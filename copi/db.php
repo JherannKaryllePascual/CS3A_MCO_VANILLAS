@@ -1,6 +1,6 @@
 <?php
 $host = 'localhost';
-$db = 'social_media';
+$db = 'sociall_media';
 $user = 'root';
 $pass = '';
 

@@ -1,6 +1,14 @@
 <?php
 session_start();
+
 include 'db.php';
+
+use PHPMailer\PHPMailer\PHPMailer;
+use PHPMailer\PHPMailer\Exception;
+
+require 'PHPMailer/src/Exception.php';
+require 'PHPMailer/src/PHPMailer.php';
+require 'PHPMailer/src/SMTP.php';
 
 $error = '';
 $success = '';
@@ -29,19 +37,47 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             if ($stmt->rowCount() > 0) {
                 $error = "Username or email already exists";
             } else {
-                // Hash password
-                $hashed_password = password_hash($password, PASSWORD_DEFAULT);
+                // Generate OTP
+                $otp = rand(100000, 999999);
                 
-                // Insert new user
-                $stmt = $pdo->prepare("INSERT INTO users (username, email, password) VALUES (?, ?, ?)");
-                $stmt->execute([$username, $email, $hashed_password]);
+                // Store user data and OTP in session
+                $_SESSION['temp_user'] = [
+                    'username' => $username,
+                    'email' => $email,
+                    'password' => password_hash($password, PASSWORD_DEFAULT),
+                    'otp' => $otp
+                ];
                 
-                // Set success message in session to display on login page
-                $_SESSION['signup_success'] = "Registration successful! Please log in.";
-                
-                // Redirect to login page
-                header("Location: login.php");
-                exit();
+                // Send OTP email using PHPMailer
+                $mail = new PHPMailer(true);
+                try {
+                    //Server settings
+                    $mail->isSMTP();
+                    $mail->Host = 'smtp.gmail.com';  // Set your SMTP server
+                    $mail->SMTPAuth = true;
+                    $mail->Username = 'valdezpascualjherannkarylle21@gmail.com'; // SMTP username
+                    $mail->Password = 'qtlq bbnv jlzf wqya';   // SMTP password
+                    $mail->SMTPSecure = PHPMailer::ENCRYPTION_STARTTLS;
+                    $mail->Port = 587;
+
+                    //Recipients
+                    $mail->setFrom('valdezpascualjherannkarylle21@gmail.com', 'JustTrends');
+                    $mail->addAddress($email, $username);
+
+                    // Content
+                    $mail->isHTML(true);
+                    $mail->Subject = 'Your OTP Code for JustTrends';
+                    $mail->Body    = "Your OTP code is: <b>$otp</b>";
+
+                    $mail->send();
+
+                    // Redirect to OTP verification page
+                    header("Location: otp_verification.php");
+                    exit();
+                } catch (Exception $e) {
+                    error_log("Mailer Error: " . $mail->ErrorInfo);
+                    $error = "Failed to send OTP email. Please try again.";
+                }
             }
         } catch (PDOException $e) {
             error_log("Signup error: " . $e->getMessage());
